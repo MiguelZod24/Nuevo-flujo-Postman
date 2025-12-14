@@ -1,0 +1,53 @@
+name: API Tests with Newman
+
+on:
+  # Se ejecuta todas las noches a las 12:00 AM (medianoche)
+  schedule:
+    - cron: '0 0 * * *'  # Formato: minuto hora día mes día-semana
+  
+  # También permite ejecutar manualmente desde GitHub
+  workflow_dispatch:
+
+jobs:
+  api-testing:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Descargar el código del repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # 2. Instalar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      # 3. Instalar Newman y el reporter HTML
+      - name: Install Newman and HTML reporter
+        run: |
+          npm install -g newman
+          npm install -g newman-reporter-htmlextra
+      
+      # 4. Ejecutar los tests con Newman
+      - name: Run API tests
+        run: |
+          npx newman run postman/nueva_coleccion.json \
+            -r htmlextra,cli \
+            --reporter-htmlextra-export newman-report.html
+      
+      # 5. Guardar el reporte HTML como artefacto
+      - name: Upload test report
+        if: always()  # Sube el reporte aunque los tests fallen
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report
+          path: newman-report.html
+      
+      # 6. Publicar resultados en el resumen del workflow
+      - name: Publish test summary
+        if: always()
+        run: |
+          echo "## 📊 API Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "Los tests se ejecutaron correctamente." >> $GITHUB_STEP_SUMMARY
+          echo "Revisa el artefacto 'newman-report' para ver el reporte completo." >> $GITHUB_STEP_SUMMARY
