@@ -1,9 +1,18 @@
-name: API Tests with Newman
+name: API Tests with Newman & SonarCloud
 
 on:
   # Se ejecuta todas las noches a las 12:00 AM (medianoche)
   schedule:
-    - cron: '0 0 * * *'  # Formato: minuto hora día mes día-semana
+    - cron: '0 0 * * *'
+  
+  # Se ejecuta en cada push a main
+  push:
+    branches:
+      - main
+  
+  # Se ejecuta en cada pull request
+  pull_request:
+    types: [opened, synchronize, reopened]
   
   # También permite ejecutar manualmente desde GitHub
   workflow_dispatch:
@@ -16,6 +25,8 @@ jobs:
       # 1. Descargar el código del repositorio
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para SonarCloud
       
       # 2. Instalar Node.js
       - name: Setup Node.js
@@ -38,16 +49,23 @@ jobs:
       
       # 5. Guardar el reporte HTML como artefacto
       - name: Upload test report
-        if: always()  # Sube el reporte aunque los tests fallen
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: newman-report
           path: newman-report.html
       
-      # 6. Publicar resultados en el resumen del workflow
+      # 6. Análisis de código con SonarCloud
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
+      # 7. Publicar resultados en el resumen del workflow
       - name: Publish test summary
         if: always()
         run: |
           echo "## 📊 API Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "Los tests se ejecutaron correctamente." >> $GITHUB_STEP_SUMMARY
-          echo "Revisa el artefacto 'newman-report' para ver el reporte completo." >> $GITHUB_STEP_SUMMARY
+          echo "✅ Los tests se ejecutaron correctamente." >> $GITHUB_STEP_SUMMARY
+          echo "📄 Revisa el artefacto 'newman-report' para ver el reporte completo." >> $GITHUB_STEP_SUMMARY
+          echo "🔍 Análisis de código completado en SonarCloud." >> $GITHUB_STEP_SUMMARY
